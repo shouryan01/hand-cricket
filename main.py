@@ -10,6 +10,19 @@ import random
 import time
 warnings.filterwarnings("ignore")
 
+class Player:
+    def __init__(self):
+        self.score = 0
+
+    def add_score(self, score):
+        self.score += score
+
+class Computer:
+    def __init__(self):
+        self.score = 0
+
+    def add_score(self, score):
+        self.score += score
 
 class Game:
     def __init__(self):
@@ -27,13 +40,8 @@ class Game:
         self.cap = cv2.VideoCapture(0)
         self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        self.timer = 0
-        self.prediction = None
-        self.computer_hand = None
-        self.prediction_text = None
-        self.comp_prediction_text = None
-        self.playerScore = 0
-        self.compScore = 0
+        self.player = Player()
+        self.computer = Computer()
 
     def splash_screen(self):
         text1 = "Welcome to Hand Cricket!"
@@ -45,7 +53,7 @@ class Game:
         if coin == 0:
             first = "BAT"
         else:
-            first = "BALL"
+            first = "BOWL"
 
         text2 = "Based on a random coin toss, you will {} first!".format(first)
         textsize2 = cv2.getTextSize(text2, self.font, 1, 2)[0]
@@ -113,13 +121,33 @@ class Game:
             )
 
             cv2.imshow('Hand Cricket Instructions', image)
-            self.timer = self.timer + 1
+            timer = timer + 1
 
             if cv2.waitKey(1) & 0xFF == ord(' '):
                 break
-        self.run_game(coin)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                return
+
+        if coin == 0:
+            self.bat()
+        else:
+            self.bowl()
 
     def run_game(self, coin):
+        player_move = 0
+        player_text = ""
+        computer_move = 0
+        computer_text = ""
+        timer = 0
+        second_innings = False
+
+        if coin == 0:
+            first = self.player
+            second = self.computer
+        else:
+            first = self.computer
+            second = self.player
+
         while self.cap.isOpened():
             success, frame = self.cap.read()
             if not success:
@@ -133,56 +161,30 @@ class Game:
             if list:
                 height, width, _ = image.shape
                 all_distance = calculate(height, width, list)
-                if self.timer % 30 == 0 and self.timer > 0:
-                    self.prediction = self.model.predict([all_distance])[0]
-                    self.computer_hand = random.choice([0, 1, 2, 3, 4, 6])
-                    self.prediction_text = "You chose " + \
-                        classify_class(self.prediction)
-                    self.comp_prediction_text = "The computer chose " + \
-                        classify_class(self.computer_hand)
+                
+                if timer % 30 == 0 and timer > 0:
+                    player_move = self.model.predict([all_distance])[0]
+                    computer_move = random.choice([1])
+                    player_text = "You chose " + \
+                        classify_class(player_move)
+                    computer_text = "The computer chose " + \
+                        classify_class(computer_move)
 
-                if (self.prediction == 0 and self.computer_hand == 1) or (self.prediction == 1 and self.computer_hand == 2) or (
-                        self.prediction == 2 and self.computer_hand == 0):
-                    if self.timer % 60 == 0 and self.timer > 0:
-                        self.playerScore = self.playerScore + 1
-                    cv2.putText(
-                        image,
-                        "You Win!",
-                        (600, 250),
-                        self.font,
-                        self.fontScale,
-                        (3, 191, 8),
-                        self.thickness,
-                        self.type
-                    )
-                elif (self.prediction == 1 and self.computer_hand == 0) or (self.prediction == 2 and self.computer_hand == 1) or (
-                        self.prediction == 0 and self.computer_hand == 2):
-                    if self.timer % 60 == 0 and self.timer > 0:
-                        self.compScore = self.compScore + 1
-                    cv2.putText(
-                        image,
-                        "You Lose!",
-                        (600, 250),
-                        self.font,
-                        self.fontScale,
-                        (10, 45, 176),
-                        self.thickness,
-                        self.type
-                    )
-                elif(self.prediction == self.computer_hand and self.prediction != None and self.computer_hand != None):
-                    cv2.putText(
-                        image,
-                        "Draw!",
-                        (600, 250),
-                        self.font,
-                        self.fontScale,
-                        (176, 10, 19),
-                        self.thickness,
-                        self.type
-                    )
+                    if player_move == computer_move:
+                        if not second_innings:
+                            print(self.player.score, self.computer.score)
+                            second_innings = True
+                            self.end_innings()
+
+                        first, second = second, first
+                        # self.loser()
+                    else:
+                        self.bat(first, player_move)
+                    
+
                 cv2.putText(
                     image,
-                    "Computer Score: " + str(self.compScore),
+                    "Computer Score: " + str(self.computer.score),
                     (10, 400),
                     self.font,
                     self.fontScale,
@@ -192,17 +194,17 @@ class Game:
                 )
                 cv2.putText(
                     image,
-                    "Player Score: " + str(self.playerScore),
+                    "Player Score: " + str(self.player.score),
                     (1080, 400),
                     self.font,
                     self.fontScale,
-                    (16, 210, 236),
+                    (17, 75, 212),
                     self.thickness,
                     self.type
                 )
                 image = cv2.putText(
                     image,
-                    self.comp_prediction_text,
+                    computer_text,
                     self.coordinates,
                     self.font,
                     self.fontScale,
@@ -212,17 +214,17 @@ class Game:
                 )
                 cv2.putText(
                     image,
-                    self.prediction_text,
+                    player_text,
                     (1030, 30),
                     self.font,
                     self.fontScale,
-                    (16, 210, 236),
+                    (17, 75, 212),
                     self.thickness,
                     self.type
                 )
                 cv2.putText(
                     image,
-                    str(((30 - int(self.timer % 30)) // 10) + 1),
+                    str(3 - (int(timer % 30) // 10)),
                     (650, 30),
                     self.font,
                     self.fontScale,
@@ -230,30 +232,116 @@ class Game:
                     self.thickness,
                     self.type
                 )
-            cv2.imshow('Hands', image)
-            self.timer = self.timer + 1
+            cv2.imshow('Play Cricket!', image)
+            timer = timer + 1
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
+    def bat(self, batter, runs):
+        if batter == self.player:
+            self.player.add_score(runs)
+        else:
+            self.computer.add_score(runs)
+
+    def end_innings(self):
+        text = "You Win! :)"
+        textsize = cv2.getTextSize(text, self.font, 3, 4)[0]
+        textX = int((self.width / 2) - (textsize[0] / 2))
+        textY = int((self.height / 2) - (textsize[1] / 2))
+        while self.cap.isOpened():
+            success, frame = self.cap.read()
+            if not success:
+                print("Ignoring empty camera frame.")
+                continue
+            image, list = self.hands.find_hand_landmarks(
+                cv2.flip(frame, 1),
+                draw_landmarks=False
+            )
+            cv2.putText(
+                image,
+                text,
+                (textX, textY),
+                self.font,
+                3,
+                (58, 138, 79),
+                4,
+                self.type
+            )
+            if cv2.waitKey(1) & 0xFF == ord(' '):
+                return
+            cv2.imshow('Thanks for playing!', image)
+
+        cv2.destroyWindow("Thanks for playing!")
+
+
+    def winner(self):
+        text = "You Win! :)"
+        textsize = cv2.getTextSize(text, self.font, 3, 4)[0]
+        textX = int((self.width / 2) - (textsize[0] / 2))
+        textY = int((self.height / 2) - (textsize[1] / 2))
+        while self.cap.isOpened():
+            success, frame = self.cap.read()
+            if not success:
+                print("Ignoring empty camera frame.")
+                continue
+            image, list = self.hands.find_hand_landmarks(
+                cv2.flip(frame, 1),
+                draw_landmarks=False
+            )
+            cv2.putText(
+                image,
+                text,
+                (textX, textY),
+                self.font,
+                3,
+                (58, 138, 79),
+                4,
+                self.type
+            )
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                return
+            cv2.imshow('Thanks for playing!', image)
+
         self.cap.release()
         cv2.destroyAllWindows()
 
-    # while cap.isOpened():
-    #     now = time.time()
-    #     success, frame = cap.read()
-    #     if not success:
-    #         print("Ignoring empty camera frame.")
-    #         continue
-    #     image, list = hands.find_hand_landmarks(
-    #         cv2.flip(frame, 1),
-    #         draw_landmarks=False
-    #     )
 
-    #     if time.time() - now < 4:
-    #         cv2.putText(image, "Time For the Toss!", (650, 30),
-    #                     font, fontScale, color, thickness, self.type)
+    def loser(self):
+        text = "Better Luck Next Time :("
+        textsize = cv2.getTextSize(text, self.font, 3, 4)[0]
+        textX = int((self.width / 2) - (textsize[0] / 2))
+        textY = int((self.height / 2) - (textsize[1] / 2))
+        while self.cap.isOpened():
+            success, frame = self.cap.read()
+            if not success:
+                print("Ignoring empty camera frame.")
+                continue
+            image, list = self.hands.find_hand_landmarks(
+                cv2.flip(frame, 1),
+                draw_landmarks=False
+            )
+            cv2.putText(
+                image,
+                text,
+                (textX, textY),
+                self.font,
+                3,
+                (10, 59, 252),
+                4,
+                self.type
+            )
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                return
+            cv2.imshow('Thanks for playing!', image)
+
+        self.cap.release()
+        cv2.destroyAllWindows()
+    
 
 
 game = Game()
-
-game.splash_screen()
+# game.splash_screen()
+# game.winner()
+# game.loser()
+game.run_game(0)
