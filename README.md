@@ -1,5 +1,5 @@
 # Hand Cricket!
-Play the popular fast-paced hand cricket game ... against the computer!
+Play the popular fast-paced hand cricket game ... against the computer! [Link to YouTube demo](https://youtu.be/w0yIG2ZMGj0)
 
 # Rules
 
